@@ -1,0 +1,29 @@
+name: 触发 Cloudflare Pages 部署
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: cf-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  trigger-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 调用 Deploy Hook
+        run: |
+          if [ -z "${{ secrets.CF_DEPLOY_HOOK }}" ]; then
+            echo "缺少 secret CF_DEPLOY_HOOK"
+            exit 1
+          fi
+          CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST "${{ secrets.CF_DEPLOY_HOOK }}")
+          echo "HTTP $CODE"
+          cat /tmp/resp.json
+          case "$CODE" in
+            200|201) echo "已触发构建" ;;
+            *) echo "触发失败"; exit 1 ;;
+          esac
